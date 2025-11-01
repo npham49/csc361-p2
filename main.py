@@ -44,7 +44,6 @@ def main():
                 print("\n" + "="*70 + "\n")
                 print("B) Connections' details")
                 print_connection_summary(connections)
-                print("\n" + "="*70 + "\n")
                 print_general_statistics(connections)
                 print_complete_connection_statistics(connections)
                 

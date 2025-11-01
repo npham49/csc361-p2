@@ -1,5 +1,4 @@
 def print_complete_connection_statistics(connections):
-    """Print statistics for complete TCP connections"""
     print("\n" + "="*70)
     print("D) Complete TCP connections:")
     print("="*70 + "\n")

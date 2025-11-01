@@ -1,5 +1,6 @@
+# Class instance to represent a TCP connection and track its state
+# each attribute represents a metric we want to track for the connection as required in the assignment description
 class TCPConnection:
-    """Represents a TCP connection with tracking of packets and flags"""
     
     def __init__(self, src_ip, dst_ip, src_port, dst_port):
         self.src_ip = src_ip

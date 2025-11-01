@@ -1,6 +1,5 @@
 # Print out some general anaytics from the list of connections returned
 def print_general_statistics(connections):
-    """Print general statistics about TCP connections"""
     print("\n" + "="*70)
     print("C) General")
     print("="*70 + "\n")
