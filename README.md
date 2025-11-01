@@ -5,6 +5,7 @@
 Tracer analyzes a capture file from Wireshark.
 
 **NOTE**: I decided to skip RTT and window calculation due to running out of time and focusing on reviewing the midterm exam material.
+**NOTE 2**: This project was originally built using multiple modules approach to mimic real-world Python projects. However, to accommodate the request for a single combined file, I have created `TracerCombined.py` which consolidates all the necessary code into one file while maintaining the original functionality.
 
 ## Running the tester
 
@@ -17,13 +18,13 @@ Tracer analyzes a capture file from Wireshark.
 Run the following command in your terminal:
 
 ```bash
-python Tracer.py <path_to_pcap_file>
+python TracerCombined.py <path_to_pcap_file>
 ```
 
 Or if you have Python 3 specifically:
 
 ```bash
-python3 Tracer.py <path_to_pcap_file>
+python3 TracerCombined.py <path_to_pcap_file>
 ```
 
 Replace `<path_to_pcap_file>` with the actual path to your pcap file.
