@@ -1,72 +1,4 @@
-class TCPConnection:
-    """Represents a TCP connection with tracking of packets and flags"""
-    
-    def __init__(self, src_ip, dst_ip, src_port, dst_port):
-        self.src_ip = src_ip
-        self.dst_ip = dst_ip
-        self.src_port = src_port
-        self.dst_port = dst_port
-        
-        # Track SYN and FIN counts
-        self.syn_count = 0
-        self.fin_count = 0
-        self.rst_count = 0
-        
-        # Track packets and data
-        self.packets_src_to_dst = 0
-        self.packets_dst_to_src = 0
-        self.data_bytes_src_to_dst = 0
-        self.data_bytes_dst_to_src = 0
-        
-        # Timing information
-        self.start_time = None
-        self.end_time = None
-        
-    def add_packet(self, src_ip, dst_ip, tcp_flags, tcp_data_len, timestamp):
-        if self.start_time is None:
-            self.start_time = timestamp
-        
-        self.end_time = timestamp
-        
-        # Count SYN flags (0x012 for SYN ACK and 0x002 for SYN so we use 0x02)
-        if tcp_flags & 0x02:  # SYN flag
-            self.syn_count += 1
-        
-        # Count FIN flags
-        if tcp_flags & 0x01:  # FIN flag
-            self.fin_count += 1
-        
-        # Count RST flags
-        if tcp_flags & 0x04:  # RST flag
-            self.rst_count += 1
-        
-        # Track packet direction
-        if src_ip == self.src_ip and dst_ip == self.dst_ip:
-            self.packets_src_to_dst += 1
-            self.data_bytes_src_to_dst += tcp_data_len
-        else:
-            self.packets_dst_to_src += 1
-            self.data_bytes_dst_to_src += tcp_data_len
-    
-    def get_status(self):
-        if self.rst_count > 0:
-            return "S{}F{}/R".format(self.syn_count, self.fin_count)
-        return "S{}F{}".format(self.syn_count, self.fin_count)
-    
-    def is_complete(self):
-        return self.syn_count >= 1 and self.fin_count >= 1
-    
-    def get_duration(self):
-        if self.start_time is None or self.end_time is None:
-            return 0.0
-        return self.end_time - self.start_time
-    
-    def get_total_packets(self):
-        return self.packets_src_to_dst + self.packets_dst_to_src
-    
-    def get_total_data_bytes(self):
-        return self.data_bytes_src_to_dst + self.data_bytes_dst_to_src
-
+from modules.model.tcp_connection import TCPConnection
 
 def parse_ethernet_header(packet_data):
     if len(packet_data) < 14:
@@ -91,10 +23,9 @@ def parse_ip_header(ip_data):
     
     ihl = (ip_data[0] & 0x0F) * 4  # Header length in bytes
     protocol = ip_data[9]
-    
     src_ip = '.'.join(str(b) for b in ip_data[12:16])
     dst_ip = '.'.join(str(b) for b in ip_data[16:20])
-    
+
     return {
         'version': version,
         'header_length': ihl,
@@ -139,9 +70,16 @@ def get_connection_key(src_ip, dst_ip, src_port, dst_port):
 def analyze_tcp_connections(packets):
     connections = {}
     
+    # Find the first packet's timestamp to use as baseline (relative time)
+    first_timestamp = None
+    if packets:
+        first_timestamp = packets[0]['timestamp_sec'] + packets[0]['timestamp_usec'] / 1000000.0
+    
     for packet in packets:
-        # Get timestamp
+        # Get timestamp (relative to first packet)
         timestamp = packet['timestamp_sec'] + packet['timestamp_usec'] / 1000000.0
+        if first_timestamp is not None:
+            timestamp = timestamp - first_timestamp
         
         # Parse Ethernet header
         eth = parse_ethernet_header(packet['data'])
@@ -157,38 +95,45 @@ def analyze_tcp_connections(packets):
         tcp = parse_tcp_header(ip['payload'])
         if not tcp:
             continue
-
-        # Create a connection key that would reflect both directions
-        key = get_connection_key(ip['src_ip'], ip['dst_ip'], tcp['src_port'], tcp['dst_port'])
         
-        # Once we have the key then the process would just be finding out packets in
-        # that connection, if not exist create it
-        if key not in connections:
-            connections[key] = TCPConnection(key[0], key[1], key[2], key[3])
+        # Create keys for both directions
+        key = (ip['src_ip'], ip['dst_ip'], tcp['src_port'], tcp['dst_port'])
+        reverse_key = (ip['dst_ip'], ip['src_ip'], tcp['dst_port'], tcp['src_port'])
         
-        connections[key].add_packet(
-            ip['src_ip'], 
-            ip['dst_ip'], 
-            tcp['flags'], 
-            tcp['data_length'],
-            timestamp
-        )
+        # Check if connection exists in either direction
+        if key in connections:
+            # Connection already exists in this direction
+            connections[key].add_packet(
+                ip['src_ip'],
+                ip['dst_ip'],
+                tcp['flags'],
+                tcp['data_length'],
+                timestamp
+            )
+        elif reverse_key in connections:
+            # Connection exists in reverse direction, add packet there
+            connections[reverse_key].add_packet(
+                ip['src_ip'],
+                ip['dst_ip'],
+                tcp['flags'],
+                tcp['data_length'],
+                timestamp
+            )
+        else:
+            # New connection - create with this packet's direction
+            connections[key] = TCPConnection(ip['src_ip'], ip['dst_ip'], tcp['src_port'], tcp['dst_port'])
+            connections[key].add_packet(
+                ip['src_ip'],
+                ip['dst_ip'],
+                tcp['flags'],
+                tcp['data_length'],
+                timestamp
+            )
     
     return list(connections.values())
 
 
 def print_connection_summary(connections):
-    print("\n" + "-"*70 + "\n")
-    print("TCP Connection Summary")
-    print("\n" + "-"*70 + "\n")
-    print(f"\nTotal TCP connections found: {len(connections)}")
-    
-    complete_count = sum(1 for conn in connections if conn.is_complete())
-    print(f"Complete connections (with SYN and FIN): {complete_count}")
-    print(f"Incomplete connections: {len(connections) - complete_count}")
-    
-    print("\n" + "-"*70 + "\n")
-    
     for i, conn in enumerate(connections, 1):
         print(f"Connection {i}:")
         print(f"Source Address: {conn.src_ip}")

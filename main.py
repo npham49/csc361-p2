@@ -1,6 +1,8 @@
 import sys
 from modules.pcap_parser import parse_pcap_header, parse_packet
 from modules.tcp_analyzer import analyze_tcp_connections, print_connection_summary
+from modules.general_analyzer import print_general_statistics
+from modules.complete_analyzer import print_complete_connection_statistics
 
 def main():
     if len(sys.argv) > 1:
@@ -11,26 +13,15 @@ def main():
                 # Read .cap file in binary mode
                 data = file.read()
                 
-                print(f"Successfully opened {file_path}")
-                print(f"File size: {len(data)} bytes\n")
-                
                 # Parse pcap header
                 header = parse_pcap_header(data)
                 if not header:
                     print("Error: Invalid pcap file format")
                     return
                 
-                print("=== PCAP File Header ===")
-                print(f"Version: {header['version_major']}.{header['version_minor']}")
-                print(f"Snaplen: {header['snaplen']}")
-                print(f"Network type: {header['network']}")
-                print(f"Byte order: {header['byteorder']}\n")
-                
                 # Parse packets
                 offset = 24  # Start after global header
                 packet_num = 1
-                
-                print("=== Packets ===\n")
                 while offset < len(data):
                     packet, new_offset = parse_packet(data, offset, header['byteorder'])
                     
@@ -38,12 +29,6 @@ def main():
                         break
 
                     packets.append(packet)
-                    
-                    print(f"--- Packet #{packet_num} ---")
-                    print(f"Timestamp: {packet['timestamp_sec']}.{packet['timestamp_usec']:06d}")
-                    print(f"Captured length: {packet['captured_length']} bytes")
-                    print(f"Original length: {packet['original_length']} bytes")
-                    print()
                     
                     offset = new_offset
                     packet_num += 1
@@ -53,7 +38,15 @@ def main():
                 # Analyze TCP connections
                 print("\nAnalyzing TCP connections...")
                 connections = analyze_tcp_connections(packets)
+                print("\n" + "="*70 + "\n")
+                print(f"A) Total Number of TCP Connections: {len(connections)}")
+
+                print("\n" + "="*70 + "\n")
+                print("B) Connections' details")
                 print_connection_summary(connections)
+                print("\n" + "="*70 + "\n")
+                print_general_statistics(connections)
+                print_complete_connection_statistics(connections)
                 
         except FileNotFoundError:
             print(f"Error: File '{file_path}' not found.")

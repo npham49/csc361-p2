@@ -1,5 +1,4 @@
 def parse_pcap_header(data):
-    """Parse the global pcap header (24 bytes)"""
     if len(data) < 24:
         return None
     
@@ -18,14 +17,9 @@ def parse_pcap_header(data):
     return {
         'magic': magic,
         'byteorder': byteorder,
-        'version_major': int.from_bytes(data[4:6], byteorder=byteorder),
-        'version_minor': int.from_bytes(data[6:8], byteorder=byteorder),
-        'snaplen': int.from_bytes(data[16:20], byteorder=byteorder),
-        'network': int.from_bytes(data[20:24], byteorder=byteorder)
     }
 
 def parse_packet(data, offset, byteorder):
-    """Parse a single packet starting at offset"""
     if offset + 16 > len(data):
         return None, offset
     
